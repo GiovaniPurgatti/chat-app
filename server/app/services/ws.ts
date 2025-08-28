@@ -16,15 +16,13 @@ class Ws {
     })
 
     this.io.on('connection', (socket) => {
-      // console.log('User connected:', socket.id)
+      console.log('User connected:', socket.id)
 
-      // Recebe mensagem de texto ou imagem
       socket.on('message', (message: any) => {
         // console.log('Message received:', message)
-        this.io?.emit('message', message) // envia para todas as abas
+        this.io?.emit('message', message) 
       })
 
-      // Limpar todas as mensagens
       socket.on('clear_messages', () => {
         // console.log('Clearing messages requested by', socket.id)
         this.io?.emit('clear_messages')
@@ -36,7 +34,7 @@ class Ws {
       })
 
       socket.on('disconnect', () => {
-        // console.log('User disconnected:', socket.id)
+        console.log('User disconnected:', socket.id)
       })
     })
   }
