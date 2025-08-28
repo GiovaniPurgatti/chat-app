@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+
+  chat-front:
+    build: ./
+    container_name: chat-front
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./.env
+    depends_on:
+      - chat-server
+
+  chat-server:
+    build: ./server
+    container_name: chat-server
+    ports:
+      - "3333:3333"
+    env_file:
+      - ./server/.env
+
