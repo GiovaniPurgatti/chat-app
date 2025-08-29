@@ -11,7 +11,7 @@ import { Audio } from "expo-av";
 import * as ImagePicker from "expo-image-picker";
 import { Stack } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Image } from "react-native";
+import { FlatList, Image, Pressable, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { io, Socket } from "socket.io-client";
 
@@ -22,6 +22,7 @@ type ChatMessage =
 export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
+  const [showImage, setShowImage] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -64,6 +65,17 @@ export default function ChatScreen() {
     await sound.playAsync();
   };
 
+  const playRisadaSound = async () => {
+    const { sound } = await Audio.Sound.createAsync(
+      require("../assets/risada.mp3") // ajuste o caminho
+    );
+    await sound.playAsync();
+    setShowImage(true); // ativa a exibição da imagem
+    setTimeout(() => {
+      setShowImage(false);
+    }, 3000);
+  };
+
   useEffect(() => {
     const socket = io(serverUrl, { transports: ["websocket"] });
     socketRef.current = socket;
@@ -86,6 +98,10 @@ export default function ChatScreen() {
       playBarrilSound();
     });
 
+    socket.on("risada", () => {
+      playRisadaSound();
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -103,7 +119,12 @@ export default function ChatScreen() {
     <SafeAreaView style={{ flex: 1 }}>
       <Stack.Screen
         options={{
-          title: "Chat",
+          // 🔥 aqui você substitui o título por um componente clicável
+          headerTitle: () => (
+            <Pressable onPress={() => socketRef.current?.emit("risada")}>
+              <Text style={{ fontSize: 18, fontWeight: "bold" }}>Chat</Text>
+            </Pressable>
+          ),
           headerRight: () => (
             <HStack space="sm" mr={12}>
               <Button
@@ -152,6 +173,16 @@ export default function ChatScreen() {
             )}
           />
         </Box>
+        {showImage && (
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <Image
+              source={require("../assets/images/maxresdefault.jpg")}
+              style={{ width: 200, height: 200 }}
+            />
+          </View>
+        )}
         <HStack space="sm" alignItems="center">
           <Textarea flex={1} h={100}>
             <TextareaInput

@@ -33,6 +33,11 @@ class Ws {
         this.io?.emit('barril')
       })
 
+      socket.on('risada', () => {
+        // console.log('Clearing messages requested by', socket.id)
+        this.io?.emit('risada')
+      })
+
       socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id)
       })
