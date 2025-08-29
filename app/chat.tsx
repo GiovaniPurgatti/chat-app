@@ -14,15 +14,18 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Image, Pressable, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { io, Socket } from "socket.io-client";
+import { v4 as uuidv4 } from "uuid";
 
 type ChatMessage =
-  | { type: "text"; content: string }
-  | { type: "image"; uri: string };
+  | { type: "text"; content: string; senderId: string }
+  | { type: "image"; uri: string; senderId: string };
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [showImage, setShowImage] = useState(false);
+
+  const myUserId = useMemo(() => uuidv4(), []);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -30,19 +33,6 @@ export default function ChatScreen() {
     const url = process.env.EXPO_PUBLIC_SOCKET_URL || "http://localhost:3333";
     return url;
   }, []);
-
-  const handlePickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      socketRef.current?.emit("message", { type: "image", uri });
-    }
-  };
 
   const playNotificationSound = async () => {
     const { sound } = await Audio.Sound.createAsync(
@@ -111,9 +101,35 @@ export default function ChatScreen() {
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    socketRef.current?.emit("message", trimmed);
+    socketRef.current?.emit("message", {
+      type: "text",
+      content: trimmed,
+      senderId: myUserId,
+    });
     setText("");
   };
+
+  const handlePickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    });
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      socketRef.current?.emit("message", {
+        type: "image",
+        uri,
+        senderId: myUserId,
+      });
+    }
+  };
+
+  const flatListRef = useRef<FlatList<ChatMessage>>(null);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [messages]);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -148,29 +164,38 @@ export default function ChatScreen() {
       <VStack flex={1} px={12} py={12} space="md">
         <Box flex={1}>
           <FlatList
+            ref={flatListRef}
             data={messages}
             keyExtractor={(item, index) => `${index}`}
-            renderItem={({ item }) => (
-              <Box
-                mb={8}
-                p={12}
-                bg="$backgroundMuted"
-                borderRadius="$md"
-                borderWidth={1}
-                borderColor="$borderMuted"
-              >
-                {typeof item === "string" ? (
-                  <Text flexShrink={1} flexWrap="wrap">
-                    {item}
-                  </Text>
-                ) : item.type === "image" ? (
-                  <Image
-                    source={{ uri: item.uri }}
-                    style={{ width: 200, height: 200, borderRadius: 8 }}
-                  />
-                ) : null}
-              </Box>
-            )}
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToEnd({ animated: true })
+            }
+            renderItem={({ item }) => {
+              const isMe = item.senderId === myUserId;
+              return (
+                <Box
+                  mb={8}
+                  p={12}
+                  bg={isMe ? "$primary500" : "$backgroundMuted"}
+                  borderRadius="$md"
+                  borderWidth={1}
+                  borderColor="$borderMuted"
+                  alignSelf={isMe ? "flex-end" : "flex-start"}
+                  maxWidth="60%"
+                >
+                  {item.type === "text" ? (
+                    <Text color={isMe ? "$white" : "$text"}>
+                      {item.content}
+                    </Text>
+                  ) : (
+                    <Image
+                      source={{ uri: item.uri }}
+                      style={{ width: 200, height: 200, borderRadius: 8 }}
+                    />
+                  )}
+                </Box>
+              );
+            }}
           />
         </Box>
         {showImage && (
